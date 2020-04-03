@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>BLE-TEST</title>
+    <style>
+      canvas {
+        max-height: 350px;
+      }
+      #int8 {
+        color: rgb(0, 145, 0);
+      }
+      #unit8-index0 {
+        color: rgba(0, 204, 255);
+      }
+      #unit8-index1 {
+        color: rgba(153, 102, 255);
+      }
+      #unit16 {
+        color: rgba(0, 102, 255);
+      }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.js"></script>
+  </head>
+  <body>
+    <div>BLE TEST APP</div>
+    <div class="bottons">
+      <button id="scan" onclick="scan()">scan</button>
+      <button id="start" onclick="startNotification()" disabled>start</button>
+      <button id="stop" onclick="stopNotification()" disabled>stop</button>
+      <button id="disconnect" onclick="disconnect()" disabled>disconnect</button>
+    </div>
+    <canvas id="myChart" width="400" height="400"></canvas>
+    <ul>
+      <li id="int8"></li>
+      <li id="unit8-index0"></li>
+      <li id="unit8-index1"></li>
+      <li id="unit16"></li>
+    </ul>
+    <script type="text/javascript">
+      const getDeviceInfo = async () => {
+        let option = {
+          acceptAllDevices: true,
+
+          optionalServices: ['0000fff0-0000-1000-8000-00805f9b34fb'],
+        };
+        try {
+          let device = await navigator.bluetooth.requestDevice(option);
+          bluetoothDeviceDetected = device;
+          await bluetoothDeviceDetected.gatt.connect();
+          console.log('connected');
+          let customService = await bluetoothDeviceDetected.gatt.getPrimaryService(
+            '0000fff0-0000-1000-8000-00805f9b34fb',
+          );
+          console.log('we get the service');
+          characteristics = await customService.getCharacteristic(
+            '0000fff4-0000-1000-8000-00805f9b34fb',
+          );
+          console.log('we get the characteristics');
+          characteristics.addEventListener('characteristicvaluechanged', handelChangedValue);
+          console.log('add the event listener');
+          console.log('now you cant start the notifications');
+          document.getElementById('start').disabled = false;
+          document.getElementById('scan').disabled = true;
+          document.getElementById('disconnect').disabled = false;
+        } catch (err) {
+          console.log('error: ' + err);
+        }
+      };
+
+      const isWebBluetoothAvailable = () => {
+        if (!navigator.bluetooth) {
+          console.log('Web Bluetooth is not available');
+          return false;
+        }
+        return true;
+      };
+
+      const getConnection = () => {
+        isWebBluetoothAvailable() && getDeviceInfo();
+      };
+      const handelChangedValue = event => {
+        let value = event.target.value;
+        console.log(
+          value.getInt8(0),
+          value.getInt8(1),
+          value.getUint8(0),
+          value.getUint8(1),
+          value.getInt16(),
+        );
+        myChart.data.labels.push(myChart.data.labels.length + 1);
+        myChart.data.datasets[0].data.push(value.getInt8(1));
+        myChart.data.datasets[1].data.push(value.getUint8(0));
+        myChart.data.datasets[2].data.push(value.getUint8(1));
+        myChart.data.datasets[3].data.push(value.getInt16());
+        if (myChart.data.labels.length == 250) {
+          myChart.data.labels.shift();
+          myChart.data.datasets[0].data.shift();
+          myChart.data.datasets[1].data.shift();
+          myChart.data.datasets[2].data.shift();
+          myChart.data.datasets[3].data.shift();
+        }
+        myChart.update();
+
+        let int8Max = Math.max(...myChart.data.datasets[0].data);
+        let int8Min = Math.min(...myChart.data.datasets[0].data);
+        let unit8Index0Max = Math.max(...myChart.data.datasets[1].data);
+        let unit8Index0Min = Math.min(...myChart.data.datasets[1].data);
+        let unit8Index1Max = Math.max(...myChart.data.datasets[2].data);
+        let unit8Index1Min = Math.min(...myChart.data.datasets[2].data);
+        let unit16Max = Math.max(...myChart.data.datasets[3].data);
+        let unit16Min = Math.min(...myChart.data.datasets[3].data);
+
+        document.getElementById('int8').innerHTML = `int8 : Max:${int8Max} ,Min:${int8Min}`;
+        document.getElementById(
+          'unit8-index0',
+        ).innerHTML = `unit8-index0 : Max:${unit8Index0Max} ,Min:${unit8Index0Min}`;
+        document.getElementById(
+          'unit8-index1',
+        ).innerHTML = `unit8-index1 : Max:${unit8Index1Max} ,Min:${unit8Index1Min}`;
+        document.getElementById('unit16').innerHTML = `unit16 : Max:${unit16Max} ,Min:${unit16Min}`;
+      };
+      const scan = async e => {
+        try {
+          await getConnection(e);
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      const startNotification = async () => {
+        try {
+          await characteristics.startNotifications();
+          document.getElementById('start').disabled = true;
+          document.getElementById('stop').disabled = false;
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      const stopNotification = async () => {
+        try {
+          await characteristics.stopNotifications();
+          document.getElementById('start').disabled = false;
+          document.getElementById('stop').disabled = true;
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      const disconnect = async () => {
+        try {
+          await bluetoothDeviceDetected.gatt.disconnect();
+          document.getElementById('start').disabled = true;
+          document.getElementById('stop').disabled = true;
+          document.getElementById('disconnect').disabled = true;
+          document.getElementById('scan').disabled = false;
+          console.log('disconnected');
+        } catch (err) {
+          console.error(err);
+        }
+      };
+
+      const ctx = document.getElementById('myChart');
+      const myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [1],
+          datasets: [
+            {
+              label: 'int8',
+              backgroundColor: 'transparent',
+              borderColor: 'rgb(0, 145, 0)',
+              data: [],
+            },
+            {
+              label: 'unit8-index(0)',
+              backgroundColor: 'transparent',
+              borderColor: 'rgba(0,204,255)',
+              data: [],
+            },
+            {
+              label: 'unit8-index(1)',
+              backgroundColor: 'transparent',
+              borderColor: 'rgba(153,102,255)',
+              data: [],
+            },
+            {
+              label: 'unit16',
+              backgroundColor: 'transparent',
+              borderColor: 'rgba(0,102,255)',
+              data: [],
+            },
+          ],
+        },
+        options: {
+          scales: {
+            xAxes: [
+              {
+                gridLines: {
+                  display: false,
+                  drawBorder: false,
+                },
+                ticks: {
+                  autoSkip: true,
+                  minTicksLimit: 3,
+                  maxTicksLimit: 10,
+                  minRotation: 55,
+                },
+              },
+            ],
+            yAxes: [
+              {
+                ticks: {
+                  beginAtZero: true,
+                  stepSize: 10,
+                },
+              },
+            ],
+          },
+          responsive: true,
+          maintainAspectRatio: false,
+          legend: {
+            display: true,
+            position: 'bottom',
+          },
+          elements: {
+            point: {
+              radius: 1.8,
+              hoverRadius: 6,
+              hoverBorderWidth: 10,
+            },
+          },
+        },
+      });
+    </script>
+  </body>
+</html>

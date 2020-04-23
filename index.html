@@ -42,8 +42,8 @@
     <script type="text/javascript">
       const getDeviceInfo = async () => {
         let option = {
-          acceptAllDevices: true,
-
+          // acceptAllDevices: true,
+          filters: [{ namePrefix: 'EC' }],
           optionalServices: ['0000fff0-0000-1000-8000-00805f9b34fb'],
         };
         try {
@@ -81,7 +81,8 @@
       const getConnection = () => {
         isWebBluetoothAvailable() && getDeviceInfo();
       };
-      const handelChangedValue = event => {
+
+      const handelChangedValue = (event) => {
         let value = event.target.value;
         console.log(
           value.getInt8(0),
@@ -122,13 +123,15 @@
         ).innerHTML = `unit8-index1 : Max:${unit8Index1Max} ,Min:${unit8Index1Min}`;
         document.getElementById('unit16').innerHTML = `unit16 : Max:${unit16Max} ,Min:${unit16Min}`;
       };
-      const scan = async e => {
+
+      const scan = async (e) => {
         try {
           await getConnection(e);
         } catch (err) {
           console.error(err);
         }
       };
+
       const startNotification = async () => {
         try {
           await characteristics.startNotifications();
@@ -138,6 +141,7 @@
           console.error(err);
         }
       };
+
       const stopNotification = async () => {
         try {
           await characteristics.stopNotifications();
@@ -147,6 +151,7 @@
           console.error(err);
         }
       };
+
       const disconnect = async () => {
         try {
           await bluetoothDeviceDetected.gatt.disconnect();

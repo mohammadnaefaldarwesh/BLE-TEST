@@ -39,6 +39,12 @@
       <li id="unit8-index1"></li>
       <li id="unit16"></li>
     </ul>
+    <br />
+    <div id="device-name">Device name :</div>
+    <br />
+    <div id="maybe-battery-level">maybe battery level :</div>
+    <br />
+    <div id="allCharacteristics">All characteristics UUID :</div>
     <script type="text/javascript">
       const getDeviceInfo = async () => {
         let option = {
@@ -47,8 +53,10 @@
           optionalServices: ['0000fff0-0000-1000-8000-00805f9b34fb'],
         };
         try {
-          let device = await navigator.bluetooth.requestDevice(option);
-          bluetoothDeviceDetected = device;
+          bluetoothDeviceDetected = await navigator.bluetooth.requestDevice(option);
+
+          document.getElementById('device-name').innerHTML += ` ${bluetoothDeviceDetected.name} `;
+
           await bluetoothDeviceDetected.gatt.connect();
           console.log('connected');
           let customService = await bluetoothDeviceDetected.gatt.getPrimaryService(
@@ -58,6 +66,23 @@
           characteristics = await customService.getCharacteristic(
             '0000fff4-0000-1000-8000-00805f9b34fb',
           );
+
+          maybeBatteryLevel = await customService.getCharacteristic(
+            '0000fff2-0000-1000-8000-00805f9b34fb',
+          );
+          let maybeBatteryLevelValue = await maybeBatteryLevel.readValue();
+
+          document.getElementById(
+            'maybe-battery-level',
+          ).innerHTML += `${maybeBatteryLevelValue.getInt8()} `;
+
+          allCharacteristics = await customService.getCharacteristics();
+
+          allCharacteristicsDiv = document.getElementById('allCharacteristics');
+          allCharacteristics.map((characteristic) => {
+            allCharacteristicsDiv.innerHTML += `<li>${characteristic.uuid} </li>`;
+          });
+
           console.log('we get the characteristics');
           characteristics.addEventListener('characteristicvaluechanged', handelChangedValue);
           console.log('add the event listener');
@@ -84,13 +109,13 @@
 
       const handelChangedValue = (event) => {
         let value = event.target.value;
-        console.log(
-          value.getInt8(0),
-          value.getInt8(1),
-          value.getUint8(0),
-          value.getUint8(1),
-          value.getInt16(),
-        );
+        // console.log(
+        //   value.getInt8(0),
+        //   value.getInt8(1),
+        //   value.getUint8(0),
+        //   value.getUint8(1),
+        //   value.getInt16(),
+        // );
         myChart.data.labels.push(myChart.data.labels.length + 1);
         myChart.data.datasets[0].data.push(value.getInt8(1));
         myChart.data.datasets[1].data.push(value.getUint8(0));
@@ -121,12 +146,12 @@
         document.getElementById(
           'unit8-index1',
         ).innerHTML = `unit8-index1 : Max:${unit8Index1Max} ,Min:${unit8Index1Min}`;
-        document.getElementById('unit16').innerHTML = `unit16 : Max:${unit16Max} ,Min:${unit16Min}`;
+        document.getElementById('unit16').innerHTML = `int16 : Max:${unit16Max} ,Min:${unit16Min}`;
       };
 
-      const scan = async (e) => {
+      const scan = async () => {
         try {
-          await getConnection(e);
+          await getConnection();
         } catch (err) {
           console.error(err);
         }
